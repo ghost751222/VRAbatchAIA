@@ -23,9 +23,9 @@ public class AIAFeedbackServiceImpl {
 
     private static final Logger logger = LoggerFactory.getLogger(AIAFeedbackServiceImpl.class);
 
-    @Value("${violation.schedule.hour:12}")
+    @Value("${violation.schedule.hour:8}")
     private Integer hour;
-    @Value("${violation.schedule.isaddinserttime:true}")
+    @Value("${violation.schedule.isaddinserttime:false}")
     private boolean isAddInsertTime;
 
     @Autowired
@@ -384,7 +384,7 @@ public class AIAFeedbackServiceImpl {
                         List<QaDesignQatermhit> qaDesignQatermhits = qaDesignQatermhit.findByJobId(vo.getId());
                         for (QaDesignQatermhit qaDesignQatermhit : qaDesignQatermhits) {
                             String checkResult = null;
-                            if ("true".equalsIgnoreCase(qaDesignQatermhit.getMachine_Hit())) {
+                            if ("true".equalsIgnoreCase(qaDesignQatermhit.getHuman_Hit())) {
                                 checkResult = "Y";
                             } else {
                                 checkResult = "N";
