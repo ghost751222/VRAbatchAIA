@@ -108,7 +108,7 @@ public class AIAPsttDataUploadLauncher {
             @Override
             public void run() {
                 LocalDateTime now = LocalDateTime.now();
-                int minRank = 15;
+                int minRank = 16;
                 Date s = DateUtil.toDate(now.minusMinutes(minRank));
                 Date e = DateUtil.toDate(now.minusMinutes(0));
                 processor.processfeedBackToADSTask(s, e);
@@ -195,6 +195,7 @@ public class AIAPsttDataUploadLauncher {
 
     public void lanuchFeedBackToAds(Date startDate, Date endDate) throws ExecutionException, InterruptedException {
         logger.info("lanuchFeedBackToAds Begin startDate={} endDate={}", startDate, endDate);
+
         Future<Future<?>> f = processor.processfeedBackToADSTask(startDate, endDate);
         logger.info("lanuchFeedBackToAds End startDate={} endDate={}", startDate, endDate);
         while (!f.get().isDone()) {

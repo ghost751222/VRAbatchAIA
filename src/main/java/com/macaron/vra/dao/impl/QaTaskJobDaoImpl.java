@@ -72,7 +72,7 @@ public class QaTaskJobDaoImpl {
 
 	
 	public List<QaTaskJob> findByTaskDate(Date taskDate){
-		String sql = "select * from qa_task_job where task_date = :taskDate";
+		String sql = "select * from qa_task_job where cast(task_date as date) = cast(:taskDate as date) ";
 		Map<String,Object> params = new HashMap<String,Object>();
 		params.put("taskDate", taskDate);
 		return jdbcTemplate.query(sql, params,new BeanPropertyRowMapper<>(QaTaskJob.class));
@@ -80,7 +80,7 @@ public class QaTaskJobDaoImpl {
 
 
 	public List<QaTaskJob> findByInsertTime(Date insertTime){
-		String sql = "select * from qa_task_job where cast(insert_time as date) = :insertTime";
+		String sql = "select * from qa_task_job where cast(insert_time as date) = cast(:insertTime as date)";
 		Map<String,Object> params = new HashMap<String,Object>();
 		params.put("insertTime", insertTime);
 		return jdbcTemplate.query(sql, params,new BeanPropertyRowMapper<>(QaTaskJob.class));
@@ -103,8 +103,8 @@ public class QaTaskJobDaoImpl {
 		params.put("psae_TMRPendingCode1",qa_task_job.getPsae_TMRPendingCode1());
 		params.put("psae_TMRPendingCode2",qa_task_job.getPsae_TMRPendingCode2());
 		params.put("psae_SCFPendingCode",qa_task_job.getPsae_SCFPendingCode());
-		params.put("psae_SCFPendingCode1",qa_task_job.getPsae_SCFPendingCode());
-		params.put("psae_SCFPendingCode2",qa_task_job.getPsae_SCFPendingCode());
+		params.put("psae_SCFPendingCode1",qa_task_job.getPsae_SCFPendingCode1());
+		params.put("psae_SCFPendingCode2",qa_task_job.getPsae_SCFPendingCode2());
 		params.put("psae_SCFRejectRemedyPendingCode1",qa_task_job.getPsae_SCFRejectRemedyPendingCode1());
 		params.put("psae_SCFRejectRemedyPendingCode2",qa_task_job.getPsae_SCFRejectRemedyPendingCode2());
 

@@ -15,6 +15,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
 
 import java.util.*;
 
@@ -54,6 +58,11 @@ public class AIAFeedbackServiceImpl {
     @Autowired
     ADSPQACaseServiceImpl adspqaCaseService;
 
+    @Autowired
+    PlatformTransactionManager postgresManager;
+    @Autowired
+    PlatformTransactionManager msManager;
+
     private final String STATE = "1003";
 
     //刪除未成交紀錄
@@ -84,6 +93,7 @@ public class AIAFeedbackServiceImpl {
         logger.info("feedBackToADS begin");
         try {
             del();
+            Thread.sleep(2000);
             List<QaTaskJob> vos = qaTaskJobService.findAllBySendDateAndListenEndTimeRange(dataTimeStart,
                     dataTimeEnd);
             Map<Integer, String> qaUsers = qaUsermanageUserDao.findAlltoMap();
@@ -160,6 +170,7 @@ public class AIAFeedbackServiceImpl {
     public void feedBackToPQA(Date dataTimeStart, Date dataTimeEnd) {
         logger.info("feedBackToPQA begin");
         try {
+            Thread.sleep(2000);
             List<ADSExChangeInfo> vos = adsExChangeInfoService.findByDateRange(dataTimeStart, dataTimeEnd);
             Map<String, String> codes = adsPendingCodeDaoImpl.queryAllToMap();
 
@@ -286,12 +297,63 @@ public class AIAFeedbackServiceImpl {
     }
 
 
-    public void violationTask(Date taskDate) {
-        try {
-            del();
-        } finally {
+    private void violationTask(QaTaskJob vo) throws Exception {
+        int count = 0;
+        int maxTries = 3;
+        TransactionStatus postgresTransactionStatus = null;
+        TransactionStatus msTransactionStatus = null;
+        while (true) {
+            try {
+                postgresTransactionStatus = postgresManager.getTransaction(new DefaultTransactionDefinition());
+                msTransactionStatus = msManager.getTransaction(new DefaultTransactionDefinition());
+                String appId = vo.getPsae_AppID();
+                violationService.setRetry(1);
+                String status = violationService.dispatchOrderCaseContent(vo);
 
+                vo.setCase_content(status);
+
+                qaCaseLabelJobsService.insertByCaseLabel(status, vo.getId());
+                qaTaskJobService.update(vo);
+
+                List<ADSExChangeInfo> adsExChangeInfos = adsExChangeInfoService.findByAppId(appId);
+                ADSExChangeInfo adsExChangeInfo = adsExChangeInfos.size() > 0 ? adsExChangeInfos.get(0) : null;
+
+                if (adsExChangeInfo != null) {
+                    if (!status.equals(adsExChangeInfo.getSTTResult())) {
+                        adsExChangeInfo.setSTTResult(status);
+                        adsExChangeInfo.setSTTResultUpdateTime(new Date());
+                        adsExChangeInfoService.update(adsExChangeInfo);
+                    }
+                }
+
+
+                msManager.commit(msTransactionStatus);
+                postgresManager.commit(postgresTransactionStatus);
+
+                break;
+            } catch (Exception e) {
+
+                logger.error("{}", e);
+
+
+                if (msTransactionStatus != null && !msTransactionStatus.isCompleted()) {
+                    msManager.rollback(msTransactionStatus);
+                }
+
+                if (postgresTransactionStatus != null && !postgresTransactionStatus.isCompleted()) {
+                    postgresManager.rollback(postgresTransactionStatus);
+                }
+
+
+                if (++count == maxTries) throw e;
+            }
         }
+
+
+    }
+
+    public void violationTask(Date taskDate) {
+        del();
         try {
             logger.info("violationTask begin");
             List<QaTaskJob> qa_task_jobs = qaTaskJobService.findByTaskDate(taskDate);
@@ -311,43 +373,46 @@ public class AIAFeedbackServiceImpl {
                     if (!StringUtils.isEmpty(qa_name)) continue;
                     if (!vo.getId().equals(_executionId)) {
 
-                        String appId = vo.getPsae_AppID();
-                        violationService.setRetry(1);
 
-                        //尋找違規話術
-//                        String violationKeyContext = violationService.searchViolationKeyContext(vo);
-//                        ObjectNode objectNode = (ObjectNode) taskNode;
-//                        objectNode.put("qa_remark", violationKeyContext);
-//                        vo.setTask(taskNode.toString());
+                        violationTask(vo);
 
-
-                        String status = violationService.dispatchOrderCaseContent(vo);
-                        vo.setCase_content(status);
-
-
-                        qaCaseLabelJobsService.insertByCaseLabel(status, vo.getId());
-                        qaTaskJobService.update(vo);
-                        List<ADSExChangeInfo> adsExChangeInfos = adsExChangeInfoService.findByAppId(appId);
-                        adsExChangeInfos.forEach(adsExChangeInfo -> {
-                            boolean IsChange = false;
-
-                            if (!status.equals(adsExChangeInfo.getSTTResult())) {
-                                adsExChangeInfo.setSTTResult(status);
-                                IsChange = true;
-                            }
-
-
-//                            if (!violationKeyContext.equals(adsExChangeInfo.getSTTRemark())) {
-//                                adsExChangeInfo.setSTTRemark(violationKeyContext);
+//                        String appId = vo.getPsae_AppID();
+//                        violationService.setRetry(1);
+//
+//                        //尋找違規話術
+////                        String violationKeyContext = violationService.searchViolationKeyContext(vo);
+////                        ObjectNode objectNode = (ObjectNode) taskNode;
+////                        objectNode.put("qa_remark", violationKeyContext);
+////                        vo.setTask(taskNode.toString());
+//
+//
+//                        String status = violationService.dispatchOrderCaseContent(vo);
+//                        vo.setCase_content(status);
+//
+//
+//                        qaCaseLabelJobsService.insertByCaseLabel(status, vo.getId());
+//                        qaTaskJobService.update(vo);
+//                        List<ADSExChangeInfo> adsExChangeInfos = adsExChangeInfoService.findByAppId(appId);
+//                        adsExChangeInfos.forEach(adsExChangeInfo -> {
+//                            boolean IsChange = false;
+//
+//                            if (!status.equals(adsExChangeInfo.getSTTResult())) {
+//                                adsExChangeInfo.setSTTResult(status);
 //                                IsChange = true;
 //                            }
-
-                            if (IsChange) {
-                                adsExChangeInfo.setSTTResultUpdateTime(new Date());
-                                adsExChangeInfoService.update(adsExChangeInfo);
-                            }
-
-                        });
+//
+//
+////                            if (!violationKeyContext.equals(adsExChangeInfo.getSTTRemark())) {
+////                                adsExChangeInfo.setSTTRemark(violationKeyContext);
+////                                IsChange = true;
+////                            }
+//
+//                            if (IsChange) {
+//                                adsExChangeInfo.setSTTResultUpdateTime(new Date());
+//                                adsExChangeInfoService.update(adsExChangeInfo);
+//                            }
+//
+//                        });
                     }
                     _executionId = vo.getId();
 

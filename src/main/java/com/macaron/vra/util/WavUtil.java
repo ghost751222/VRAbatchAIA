@@ -52,7 +52,7 @@ public class WavUtil {
 		logger.info("exitVal:{}", exitVal);
 	}
 
-	public static void convertAudioToWav(File srcFile, File destFile) {
+	public static void convertAudioVoxToWav(File srcFile, File destFile) {
 		StringBuilder cmd = new StringBuilder();
 		// convert to wav
 		String osName = System.getProperty("os.name" );
@@ -77,14 +77,42 @@ public class WavUtil {
 		}
 	}
 
+
+	public static void convertAudioWavToWav(File srcFile, File destFile) {
+		StringBuilder cmd = new StringBuilder();
+		// convert to wav
+		String osName = System.getProperty("os.name" );
+		String ffmpeg = "ffmpeg";
+		String quot = "'";
+		if(osName.equalsIgnoreCase("Linux")) {
+			ffmpeg ="./ffmpeg" ;
+			quot=" ";
+		}
+
+		cmd.append(ffmpeg).append(" -i ")
+				.append(quot).append(srcFile.toString()).append(quot)
+				.append(" -acodec pcm_s16le -ar 8000 -ac 2 -y ")
+				.append(quot).append(destFile.toString()).append(quot);
+
+		try {
+			execCmd(cmd.toString());
+		} catch (IOException | InterruptedException e) {
+			logger.error("convertAudioToWav error {}", e);
+		}
+	}
+
 	public static void convertAllAudioToWav(Path cvtWavTmpPath, Path speechSubPath) throws IOException {
 		Files.walk(cvtWavTmpPath).forEach(f -> {
 		
 			if (f.toFile().exists()) {
 				String extension = FilenameUtils.getExtension(f.toString());
-				if(!extension.equals("wav")) {
+				if(extension.equals("vox")){
 					File destFile = new File(speechSubPath.toString(), f.getFileName().toString().replace(extension, "wav"));
-					convertAudioToWav(f.toFile(), destFile);	
+					convertAudioVoxToWav(f.toFile(), destFile);
+				}
+				else if(extension.equals("wav")) {
+					File destFile = new File(speechSubPath.toString(), f.getFileName().toString().replace(extension, "wav"));
+					convertAudioWavToWav(f.toFile(), destFile);
 				}else {
 					try {
 						Files.copy(f, new File(speechSubPath.toString(), f.getFileName().toString()).toPath(), StandardCopyOption.REPLACE_EXISTING);
