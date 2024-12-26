@@ -152,7 +152,7 @@ public class AIAPsttDataUploadLauncher {
 
 
         Runnable feedBackQaModelsToADSTask = () -> {
-            int minRank = 15;
+            int minRank = 16;
             LocalDateTime now = LocalDateTime.now();
             Date s = DateUtil.toDate(now.minusMinutes(minRank));
             Date e = DateUtil.toDate(now.minusMinutes(0));

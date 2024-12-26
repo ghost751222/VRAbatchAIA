@@ -45,7 +45,6 @@ public class DBConfig {
 		source.setUser(postgreUsername);
 		source.setPassword(encryptorServiceImpl.decrypt(postgrePassword));
 		source.setDriverClass(postgresDriverClass);
-		
 		return source;
 	}
 
